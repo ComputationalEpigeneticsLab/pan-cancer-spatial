@@ -1,0 +1,76 @@
+####细胞类型展示
+library(scatterpie)
+library(ggpubr)
+library(png)
+library(jsonlite)
+library(spacexr)
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(tidyverse)
+
+
+dir_bdy<-'E:/Mirror/ST_analysis/data/ESCC/1re_data/copykat/'
+file_bdy<-list.files(pattern = 'BdyTumorCore.txt',path = dir_bdy,recursive = T)
+file_RCTD<-list.files(pattern = 'Deconvolution_CAFTAM_public.txt',path = dir_bdy,recursive = T)
+patient<-unlist(lapply(strsplit(file_bdy,'/'),function(x)x[1]))
+
+pdf("E:/Mirror/ST_analysis/pic/ESCC/Deconvolution/scatterpie_public.pdf",width = 5, height = 4)###Imm不合一起
+for(i in 1:length(file_RCTD)){
+  #i=1
+  st_bdy<-read.delim(paste0(dir_bdy,file_bdy[i]),stringsAsFactors = F,check.names = F)
+  st_RCTD<-read.delim(paste0(dir_bdy,file_RCTD[i]),stringsAsFactors = F,check.names = F)
+  st_bdy<-st_bdy[rownames(st_RCTD),]
+  
+  st_RCTD<-st_RCTD[,setdiff(colnames(st_RCTD),c('Endothelial','Epithelial'))]
+  
+  # st_RCTD$Immune<-apply(st_RCTD[,setdiff(colnames(st_RCTD),c('CAF','TAM'))],1,sum)
+  # st_RCTD<-st_RCTD[,c('CAF','TAM','Immune')]
+  ####Imm合不合一起
+  
+  plot_data<-st_RCTD
+  plot_data[st_bdy$FinalLocalType%in%c('Core',"Boundary",'Dispersion'),]<-0
+  plot_data$Core<-0
+  plot_data$Core[st_bdy$FinalLocalType%in%c('Core')]<-1
+  plot_data$Boundary<-0
+  plot_data$Boundary[st_bdy$FinalLocalType%in%c('Boundary')]<-1
+  plot_data$Dispersion<-0
+  plot_data$Dispersion[st_bdy$FinalLocalType%in%c('Dispersion')]<-1
+  #plot_data$LocalType<-st_bdy$FinalLocalType
+  plot_data$imagerow<-st_bdy$imagerow
+  plot_data$imagecol<-st_bdy$imagecol
+  plot_data<-plot_data[which(st_bdy$FinalLocalType!='not.defined'),]
+  # table(apply(plot_data[1000:2000,1:12],1,sum)==1)
+  # sum(plot_data[1,1:12])==1
+  cellname <- colnames(plot_data)[1:(ncol(plot_data)-2)]
+  
+  p_pie<-ggplot() + scatterpie::geom_scatterpie(data = plot_data, 
+                                                aes(x = imagerow, y = imagecol), col = cellname, color = NA,
+                                                pie_scale = 0.35) + 
+    coord_fixed(ratio = 1) + 
+    scale_fill_manual(values = c('Core'='#d62d28','Boundary'='#f6b86d','Dispersion'='#ee762d','Immune'='#a9d38a',
+                                 "B lymphocytes"="#66CC00",'CAF'='#A78E41',"Endothelial"="#CCCC99","Epithelial"="#93C647",
+                                 "Macrophage"="#FF6666","Myeloid cell"="#FF6600","NK cell"="#D2AF83","T lymphocytes"="#F3A383",
+                                 'TAM'='#7B3257',"Fibroblasts"="#8B964F","MAST cell"="#FF9900","Monocyte"="#EFA7A9",
+                                 "Neutrophils"="#EDDC6D","Dendritic"="#FFFF00",'no'='grey80',
+                                 
+                                 "GC B cells in the DZ"='#CC9933',
+                                 "Plasma cells"='#FFCCCC',"CD8+ T Memory"='#996699',"follicular B cells"='#A6B864',
+                                 "Treg"='#FFCC33',"Cytotoxic"='#FF6666',
+                                 "TAM_C0"='#336699',"TAM_C1"='#99CCCC',"TAM_C2"='#CCFFFF',"TAM_C3"='#99CC33',
+                                 "Naive"='#E0B8B6',"B cell Regulatory"='#990033',"Naive B cell"='#990066' )) + 
+    theme_classic()+
+    labs(x = "imagerow", y = "imagecol")+
+    ggtitle(patient[i])
+  
+  print(p_pie)
+  
+  print(patient[i])
+}
+dev.off()
+
+
+
+
+
